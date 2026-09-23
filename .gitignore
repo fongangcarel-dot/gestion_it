@@ -1,0 +1,19 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# IDE and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Runtime and local test artifacts
+*.log
+*.tmp
+*.bak
+
+# PHP and Composer generated files
+vendor/
+composer.lock

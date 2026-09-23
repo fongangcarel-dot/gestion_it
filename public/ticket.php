@@ -1,0 +1,28 @@
+<?php
+declare(strict_types=1);
+require dirname(__DIR__) . '/app/core/bootstrap.php'; require_authentication();
+$user = current_user(); $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT); if (!$id) { http_response_code(400); exit('Invalid ticket.'); }
+$ticketModel = new Ticket($pdo); $ticket = $user['role'] === 'admin' ? $ticketModel->find($id) : $ticketModel->findForUser($id, (int) $user['id'], $user['role']);
+if ($ticket === null) { http_response_code(404); exit('Ticket not found.'); }
+$errors = [];
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? null)) $errors[] = 'Invalid form token.';
+    $action = post_text('action');
+    if ($user['role'] === 'technician' && $action === 'resolve' && $ticket['technician_id'] == $user['id'] && $ticket['status'] === 'in_progress') $ticketModel->updateStatus($id, 'resolved', (int) $user['id']);
+    elseif ($user['role'] === 'technician' && $action === 'progress' && $ticket['technician_id'] == $user['id'] && in_array($ticket['status'], ['open', 'assigned'], true)) $ticketModel->updateStatus($id, 'in_progress', (int) $user['id']);
+    elseif ($user['role'] === 'admin' && $action === 'close' && $ticket['status'] === 'resolved') $ticketModel->updateStatus($id, 'closed', (int) $user['id']);
+    else $errors[] = 'This action is not allowed.';
+    if (!$errors) { flash('message', 'Ticket updated.'); redirect('ticket.php?id=' . $id); }
+    $ticket = $user['role'] === 'admin' ? $ticketModel->find($id) : $ticketModel->findForUser($id, (int) $user['id'], $user['role']);
+}
+$maintenance = (new Maintenance($pdo))->forTicket($id); $ticketActivity = (new TicketActivity($pdo))->history($id); require dirname(__DIR__) . '/app/views/layout.php'; page_header('Ticket details');
+$lifecycle = ['open' => 'Open', 'assigned' => 'Assigned', 'in_progress' => 'In progress', 'resolved' => 'Resolved', 'closed' => 'Closed'];
+$currentStep = array_search($ticket['status'], array_keys($lifecycle), true);
+?>
+<div class="toolbar"><h1><?= e($ticket['title']) ?></h1><a href="dashboard.php">Back</a></div>
+<?php if ($message = flash('message')): ?><p class="message"><?= e($message) ?></p><?php endif; ?><?php foreach ($errors as $error): ?><p class="error"><?= e($error) ?></p><?php endforeach; ?>
+<section class="panel"><p><?= nl2br(e($ticket['description'])) ?></p><div class="grid"><p><b>Status</b><br><?= e($ticket['status']) ?></p><p><b>Priority</b><br><?= e($ticket['priority']) ?></p><p><b>Category</b><br><?= e($ticket['category']) ?></p><p><b>Requester</b><br><?= e($ticket['requester']) ?></p><p><b>Assignment</b><br><?= $ticket['technician_name'] ? 'Assigned to ' . e($ticket['technician_name']) : 'Waiting for assignment' ?></p></div></section>
+<section class="panel ticket-lifecycle"><div class="section-heading"><div><p class="eyebrow">Progress</p><h2>Ticket lifecycle</h2></div><span class="lifecycle-current"><?= e($lifecycle[$ticket['status']]) ?></span></div><div class="lifecycle-track"><?php foreach ($lifecycle as $status => $label): $step = array_search($status, array_keys($lifecycle), true); ?><div class="lifecycle-item <?= $step < $currentStep ? 'completed' : ($step === $currentStep ? 'current' : '') ?>"><span class="lifecycle-dot" aria-hidden="true"><?= $step < $currentStep ? '&#10003;' : (string) ($step + 1) ?></span><?php if ($user['role'] === 'technician' && $status === 'assigned' && $ticket['status'] === 'assigned'): ?><a href="#work">Start work</a><?php elseif ($user['role'] === 'technician' && $status === 'in_progress' && $ticket['status'] === 'in_progress'): ?><a href="maintenance.php?ticket_id=<?= (int) $id ?>">Complete report</a><?php else: ?><span><?= e($label) ?></span><?php endif; ?></div><?php if ($status !== 'closed'): ?><span class="lifecycle-line <?= $step < $currentStep ? 'completed' : '' ?>" aria-hidden="true"></span><?php endif; ?><?php endforeach; ?></div></section>
+<?php if ($user['role'] === 'technician' && in_array($ticket['status'], ['open', 'assigned', 'in_progress'], true)): ?><section class="panel" id="work"><h2>Work report</h2><p><?= $ticket['status'] === 'in_progress' ? 'Continue working on this ticket and submit your report when the work is complete.' : 'Start this ticket when you are ready to work on it.' ?></p><?php if (in_array($ticket['status'], ['open', 'assigned'], true)): ?><form method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><button name="action" value="progress" type="submit">Start work</button></form><?php endif; ?><p><a class="button" href="maintenance.php?ticket_id=<?= (int) $id ?>">Report work</a></p></section><?php elseif ($user['role'] === 'admin' && $ticket['status'] === 'resolved'): ?><section class="panel"><form method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><button name="action" value="close" type="submit">Close ticket</button></form></section><?php endif; ?>
+<section class="panel"><h2>Maintenance</h2><?php foreach ($maintenance as $item): ?><p><b><?= e($item['maintenance_type']) ?></b>: <?= e($item['diagnosis'] ?? '') ?> (<?= e($item['status']) ?>)</p><?php endforeach; ?></section>
+<section class="panel"><h2>Ticket history</h2><?php foreach ($ticketActivity as $event): ?><p><b><?= e($event['action']) ?></b> by <?= e($event['actor_name']) ?><?php if ($event['old_status'] && $event['new_status']): ?>: <?= e(str_replace('_', ' ', $event['old_status'])) ?> to <?= e(str_replace('_', ' ', $event['new_status'])) ?><?php elseif ($event['details']): ?>: <?= e($event['details']) ?><?php endif; ?> <span class="muted">(<?= e($event['created_at']) ?>)</span></p><?php endforeach; ?></section><?php page_footer(); ?>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 128" role="img" aria-labelledby="title desc">
+  <title id="title">SAVANA Islamic Finance</title>
+  <desc id="desc">SAVANA Islamic Finance logo</desc>
+  <g transform="translate(8 8)">
+    <path fill="#008244" d="M48 105V43C48 20 66 4 91 0c6 12 20 17 31 21 18 7 28 22 28 42v42H89l31-31V42c0-12-7-20-18-20s-19 8-19 21v19z"/>
+    <path fill="#51b447" d="M83 62v31l-31 31h38l31-31V62z"/>
+    <path fill="#ffdc3e" d="M83 62h38v31H83z"/>
+  </g>
+  <text x="188" y="69" fill="#008244" font-family="Arial, Helvetica, sans-serif" font-size="52" font-weight="700" letter-spacing="2">SAVANA</text>
+  <text x="190" y="101" fill="#f4b92f" font-family="Arial, Helvetica, sans-serif" font-size="22" letter-spacing="1">Islamic Finance</text>
+</svg>

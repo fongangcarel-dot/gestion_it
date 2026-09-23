@@ -1,0 +1,5 @@
+<?php
+declare(strict_types=1);
+require dirname(__DIR__) . '/app/core/bootstrap.php'; require_role('admin');
+$computers=(new Computer($pdo))->all(); require dirname(__DIR__).'/app/views/layout.php'; page_header('Computers');
+?><div class="toolbar"><div><p class="eyebrow">Administration</p><h1>Computers</h1></div><a class="button" href="admin_computer.php">Add computer</a></div><?php if($message=flash('message')):?><p class="message"><?=e($message)?></p><?php endif;?><div class="panel"><table><tr><th>Asset tag</th><th>Brand/model</th><th>Operating system</th><th>Assigned user</th><th>Status</th><th>Action</th></tr><?php foreach($computers as $computer):?><tr><td><?=e($computer['asset_tag'])?></td><td><?=e($computer['brand'].' '.$computer['model'])?></td><td><?=e($computer['operating_system'])?></td><td><?=e($computer['assigned_user']??'Unassigned')?></td><td><?=e($computer['status'])?></td><td><a href="admin_computer.php?id=<?= (int)$computer['id'] ?>">Edit</a></td></tr><?php endforeach;?></table></div><?php page_footer(); ?>
